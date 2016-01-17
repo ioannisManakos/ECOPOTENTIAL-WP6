@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<application xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" id="landscape_measures">
+  <jobTemplates>
+    <jobTemplate id="land-measures">
+      <streamingExecutable>/application/calculation/run</streamingExecutable>
+      <defaultParameters>
+        <parameter id="pixelSize">2</parameter>
+        <parameter id="cellSize">1000</parameter>
+        <parameter id="pixelSize">500</parameter>
+      </defaultParameters>
+    </jobTemplate>
+  </jobTemplates>
+    <workflow id="calc_measures" title="Landscape Measures" abstract="Calculation of landscape measures quantifying fragmentation and connectivity">
+    <workflowVersion>1.0</workflowVersion>
+    <node id="node_measures">
+      <job id="land-mesures"/>
+      <sources>
+        <source refid="file:urls">/application/inputs/list</source>
+      </sources>
+    </node>
+  </workflow>
+</application>
