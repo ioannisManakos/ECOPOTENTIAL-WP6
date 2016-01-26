@@ -1,0 +1,646 @@
+#!/opt/anaconda/bin/python
+
+import site
+import os
+import sys
+import math, osr, csv
+import numpy as np
+import osgeo.gdal as gdal
+from gdalconst import *
+from skimage.measure import label
+import atexit
+from lxml import etree
+from subprocess import call
+import tarfile
+
+
+# add cioppy to the search path
+sys.path.append('/usr/lib/ciop/python/')
+# sys.path.append('opt/anaconda/bin/')
+import cioppy
+ciop = cioppy.Cioppy() 
+
+# write a log entry
+ciop.log('INFO', 'Python DCS')
+
+## input comes from STDIN (standard input)
+#for line in sys.stdin:
+# 	# do elaboration
+#    ciop.log('INFO', 'processing input: ' + line)
+
+
+
+
+## register all drivers
+#gdal.AllRegister()
+## get the Imagine driver and register it
+#driver = gdal.GetDriverByName('HFA')
+#driver.Register()
+
+# define the exit codes
+SUCCESS = 0
+ERR_BEAM = 2
+ERR_NOEXPR = 3
+ERR_NOINPUT=4
+
+# add a trap to exit gracefully
+def clean_exit(exit_code):
+    log_level = 'INFO'
+    if exit_code != SUCCESS:
+        log_level = 'ERROR'  
+   
+    msg = {SUCCESS: 'Processing successfully concluded',
+           ERR_BEAM: 'Beam_expr failed to process product',
+           ERR_NOEXPR: 'No expression provided',
+           ERR_NOINPUT: 'No input provided'}
+ 
+    ciop.log(log_level, msg[exit_code])  
+
+
+def opengdaldataset(filePath): 
+    try:
+        dtset = gdal.Open(filePath)
+    #except RuntimeError, e:    #python 2.x syntax
+    except RuntimeError as e:   #python 3 syntax
+        print('Classes file cannot be opened')
+        print(e)
+        sys.exit(1)
+    return dtset
+
+
+def raster2array(gdalDataset):
+    # read the raster data
+    try:
+        rasterData = gdalDataset.GetRasterBand(1)
+    #except RuntimeError, e:    #python 2.x syntax
+    except RuntimeError as e:   #python 3 syntax
+        print('No band data in the classes file')
+        print(e)
+        sys.exit(1)
+    
+    # convert raster to numpy arrays
+    arrayData = np.array(rasterData.ReadAsArray())
+    return arrayData
+
+
+def constructBinaryImage(xDim,yDim,objectList,object2pixels):
+    B = np.zeros((xDim,yDim),dtype=np.int)
+    # objectList can be either a list of objects (type = list) or a single
+    # object (type = int)
+    if type(objectList) is list:
+        for objct in objectList:
+            for pixelID in object2pixels[objct]:
+                x = pixelID % xDim
+                y = int(pixelID / xDim)
+                B[x,y] = 1
+    else:
+        for pixelID in object2pixels[objectList]:
+            x = pixelID % xDim
+            y = int(pixelID / xDim)
+            B[x,y] = 1
+    return B
+ 
+ 
+def calculatePerimeter(PixelList,conCom,value):
+    # quickly find the perimeter in case of a single pixel
+    if PixelList.shape[1] == 1:
+        return 4
+    # expand the initial cell by a 0-value pixel in each side
+    xSize = conCom.shape[0]
+    ySize = conCom.shape[1]
+    Cnew = np.zeros((xSize+2,ySize+2),dtype=int)
+    Cnew[1:xSize+1,1:ySize+1] = conCom
+    # update the pixel coordinates to fit the extended array
+    PixelList = PixelList + 1
+    # find the perimeter of the patch. For each pixel, add one unit to the
+    # perimeter for each side of the pixel that is not adjacent to another
+    # pixel of the patch
+    perim = 0
+    for i in range(PixelList.shape[1]):
+        ix = PixelList[0][i]
+        iy = PixelList[1][i]
+        if Cnew[ix-1][iy]!=value:
+            perim += 1
+        if Cnew[ix+1][iy]!=value:
+            perim += 1
+        if Cnew[ix][iy-1]!=value:
+            perim += 1
+        if Cnew[ix][iy+1]!=value:
+            perim += 1
+        
+    return perim
+     
+   
+def calculatePland(C):
+    # area of habitat of interest in the total area (in pixels)
+    a = np.sum(C)
+    if a==0:
+        return 0
+    # total area
+    A = C.size
+    # PLAND
+    PLAND = (100*a)/float(A);
+    return PLAND
+    
+    
+def calculateCa(C,pSize):
+    # area of target class in the total area (in pixels)
+    a = np.sum(C)
+    if a == 0:
+        return 0
+    # area in square meters
+    a = a * (pSize**2)
+    # CA (area in hectares)
+    CA = a / float(10000)
+    return CA
+    
+
+def calculateMesh(C,pSize):
+    # find connected components with 8-connectivity. An array with the same
+    # dimensions as C is returned, assigning the same label to connected
+    # pixels, ranging from 0 to (the number of connected patches - 1), setting
+    # pixels with 0 value in C as -1
+    if np.sum(C) == 0:
+        return 0
+    conCom = label(C,connectivity=2,background=0)
+    # number of patches
+    numPatches = np.amax(conCom) + 1
+    # for each patch, calculate its area in meters
+    a = np.empty((numPatches),dtype=int)
+    for i in range(numPatches):
+        numPixels = np.sum(conCom==i)
+        a[i] = numPixels * (pSize**2)
+    # areas squared
+    a2 = np.square(a)
+    # total area in square meters
+    A = (C.size) * (pSize**2)
+    # MESH
+    MESH = np.sum(a2)/float(10000*A)
+    return MESH
+
+
+def calculatePd(C,pSize):
+    # find connected components with 8-connectivity. An array with the same
+    # dimensions as C is returned, assigning the same label to connected
+    # pixels, ranging from 0 to (the number of connected patches - 1), setting
+    # pixels with 0 value in C as -1
+    if np.sum(C) == 0:
+        return 0
+    conCom = label(C,connectivity=2,background=0)
+    # number of patches
+    numPatches = np.amax(conCom) + 1
+    # total area in square meters
+    A = (C.size) * (pSize**2)
+    # PD
+    PD = 100*10000*numPatches/float(A);
+
+    return PD
+
+
+def calculateShape(C,pSize):
+    # find connected components with 8-connectivity. An array with the same
+    # dimensions as C is returned, assigning the same label to connected
+    # pixels, ranging from 0 to (the number of connected patches - 1), setting
+    # pixels with 0 value in C as -1
+    if np.sum(C) == 0:
+        return 0
+    conCom = label(C,connectivity=2,background=0)
+    # number of patches
+    numPatches = np.amax(conCom) + 1
+    # for each patch, calculate SHAPE
+    SHAPE = np.zeros(numPatches,dtype=float)
+    for i in range(numPatches):
+        # area of the patch in meters
+        numPixels = np.sum(conCom==i)
+        a = numPixels * (pSize**2)
+        # find the coordinates of the pixels of the patch (stored in a 
+        # 2 x numPixels array)
+        PixelList = np.where(conCom==i)
+        PixelList = np.array(PixelList)
+        # calculate the perimeter of the patch in pixels
+        ppix = calculatePerimeter(PixelList,conCom,i)
+        # perimeter in meters
+        p = ppix * pSize
+        # SHAPE for the patch
+        SHAPE[i] = 0.25*p/float(math.sqrt(a))
+        
+    # mean SHAPE of all patches
+    SHAPE_MN = np.mean(SHAPE)
+    
+    return SHAPE_MN
+
+    
+def calculateMps(C,pSize):  
+    # area of target class in the total area (in pixels)
+    a = np.sum(C)
+    if a == 0:
+        return 0
+    # area in square meters
+    a = a * (pSize**2)
+    # area in hectares
+    a = a / float(10000)
+    # find connected components with 8-connectivity. An array with the same
+    # dimensions as C is returned, assigning the same label to connected
+    # pixels, ranging from 0 to (the number of connected patches - 1), setting
+    # pixels with 0 value in C as -1
+    conCom = label(C,connectivity=2,background=0)
+    # number of patches
+    numPatches = np.amax(conCom) + 1
+    # MPS
+    MPS = a/float(numPatches)
+    
+    return MPS
+
+
+def calculateAWMPFD(C,pSize):
+    if np.sum(C) == 0:
+        return 0
+    # find connected components with 8-connectivity. An array with the same
+    # dimensions as C is returned, assigning the same label to connected
+    # pixels, ranging from 0 to (the number of connected patches - 1), setting
+    # pixels with 0 value in C as -1
+    conCom = label(C,connectivity=2,background=0)
+    # number of patches
+    numPatches = np.amax(conCom) + 1
+    # for each connected component (patch) find the area and perimeter
+    area = np.zeros((numPatches,1),dtype=float)
+    perim = np.zeros((numPatches,1),dtype=float)
+    for i in range(numPatches):
+        # area of the patch in meters
+        numPixels = np.sum(conCom==i)
+        area[i] = numPixels * (pSize**2)
+        # find the coordinates of the pixels of the patch (stored in a 
+        # 2 x numPixels array)
+        PixelList = np.where(conCom==i)
+        PixelList = np.array(PixelList)
+        # calculate the perimeter of the patch in pixels
+        ppix = calculatePerimeter(PixelList,conCom,i)
+        # perimeter in meters
+        perim[i] = ppix * pSize
+        
+    # find the total class area
+    totalArea = np.sum(area)
+        
+    # calculate AWMPFD
+    AWMPFD = 0.
+    for i in range(numPatches):
+        AWMPFD = AWMPFD + (2*math.log(0.25*perim[i])/math.log(area[i]))*(area[i]/totalArea)
+    
+    return AWMPFD
+
+    
+def gridCalculations(B,pSize,cellSize,step,indicatorName):
+    xSize = B.shape[0]
+    ySize = B.shape[1]
+    # define the array to store the indicator values
+    I = np.zeros((xSize,ySize),dtype = np.float)
+    # define a 2D array to store the number of cells each pixel appears in 
+    # (e.g. 1 for non-overlapping cells, >1 for overlapping ones; it depends
+    # on the relation between pSize and cellSize); it will be used to calculate
+    # mean pixel values for pixels appearing in more than one cells
+    inCells = np.zeros((xSize,ySize),dtype = np.int)    
+    pCell = int(cellSize/pSize)                     # cell size in pixels
+    pStep = int(step/pSize);                        # step in pixels
+    
+    # find the abscissa and ordinate of the upper left corner for all cells
+    IX = list(range(0,xSize-pCell+1,pStep))
+    IY = list(range(0,ySize-pCell+1,pStep))
+    if IX[len(IX)-1]!=xSize-pCell:
+        IX.append(xSize-pCell)
+    if IY[len(IY)-1]!=ySize-pCell:
+        IY.append(ySize-pCell)
+    
+    # calculate the indicator
+    for ix in IX:
+        for iy in IY:
+            C = B[ix:ix+pCell,iy:iy+pCell]     # define the cell
+ 
+            # calculate the indicator values for the cell
+            if indicatorName == 'PLAND':
+                indValue = calculatePland(C)
+            elif indicatorName == 'MESH':
+                indValue = calculateMesh(C,pSize)
+            elif indicatorName == 'PD':
+                indValue = calculatePd(C,pSize)
+            elif indicatorName == 'SHAPE':
+                indValue = calculateShape(C,pSize)
+            elif indicatorName == 'CA':
+                indValue = calculateCa(C,pSize)
+            elif indicatorName == 'MPS':
+                indValue = calculateMps(C,pSize)
+            elif indicatorName == 'AWMPFD':
+                indValue = calculateAWMPFD(C,pSize)
+            else:
+                print("Unknown indicator " + indName)
+            
+            # add the indicator value to the active pixels
+            I[ix:ix+pCell,iy:iy+pCell] = I[ix:ix+pCell,iy:iy+pCell] + indValue*C;
+            #print("Array I:  shape = "+str(I.shape)+",  type: "+str(I.dtype))
+            # update the array with the pixel appearances in cells
+            inCells[ix:ix+pCell,iy:iy+pCell] = inCells[ix:ix+pCell,iy:iy+pCell] + 1;
+            #print("Array inCells:  shape = "+str(inCells.shape)+",  type: "+str(inCells.dtype))
+
+    # for each pixel, average the values it has been assigned, for each
+    # indicator
+    I = np.divide(I,inCells.astype(float))
+    
+    return I
+
+
+def calculateObjectInd(I,objectList,object2pixels,indValues,ind,numIndicators):
+    # for each object, create a binary mask, calculate the indicator and 
+    # update the respective cell in the column with the indicator values
+    # for all object
+    for objct in objectList:
+        # create the binary mask
+        B = constructBinaryImage(I.shape[0],I.shape[1],objct,object2pixels)
+        # number of pixels of the object
+        numPixels = len(object2pixels[objct])
+        
+        # isolate the indicator values for the pixels of the object
+        B = np.multiply(B,I)
+        # find the mean indicator value characterizing the object
+        sumInd = np.sum(B)
+        meanInd = sumInd/float(numPixels)
+
+        # update the dict with the indicator values
+        if objct not in indValues:
+            #initialize an array to store the indicator values
+            indValues[objct] = np.zeros(numIndicators,dtype = np.float)
+        indValues[objct][ind] = meanInd
+    return indValues
+
+
+def calcIndicatorValues(classes,class2objects,xDim,yDim,object2pixels,pixelSize,cellSize,step,indicators):   
+    # define an empty dict to store the indicator values for each object
+    indValues = {}
+    # calculate the indicators for each class    
+    for focalClass in classes:
+        print("Calculating indicators for focalClass: " + str(focalClass))
+        objectList = class2objects[focalClass]
+        if (objectList):
+            # construct binary images indicating the pixels that belong
+            # to the focal class
+            B = constructBinaryImage(xDim,yDim,objectList,object2pixels);
+            # if there is at least one pixel in the class of interest,
+            # focalClass, calculate the indicators
+            if B.any():
+                # calculate all indicators
+                numIndicators = len(indicators)
+                for ind in range(numIndicators):
+                    # print("calculating " + indicators[ind] + "...")
+                    # calculate the indicators in a per pixel basis
+                    I = gridCalculations(B,pixelSize,cellSize,step,indicators[ind]);
+
+                    # calculate the indicators per object and update the
+                    # indValues dict
+                    #print("Calculating the indicators per object...")
+                    indValues = calculateObjectInd(I,objectList,object2pixels,indValues,ind,numIndicators)              
+    return indValues
+
+
+def formIndArray(xDim,yDim,object2pixels,indValues,ind):
+    # define array to store the values of the indicator. Initialize it with 
+    # -9999 pixel values; they will later be defined as the no-data values
+    indArray = np.full((xDim,yDim),-9999.,dtype=float)
+    for objct in object2pixels:
+        # indicator value for the specific object
+        value = indValues[objct][ind]
+        # list of the pixels of the specific object
+        pixelList = object2pixels[objct]
+        for pixelID in pixelList:
+            x = pixelID % xDim
+            y = int(pixelID / xDim)
+            indArray[x][y] = value
+    return indArray
+
+
+def array2raster(array,pathName,geotransform,projection):
+    xDim = array.shape[0]
+    yDim = array.shape[1]
+    driver = gdal.GetDriverByName('GTiff')
+    outRaster = driver.Create(pathName, yDim, xDim, 1, gdal.GDT_Float32)
+    outRaster.SetGeoTransform(geotransform)
+    outband = outRaster.GetRasterBand(1)
+    outband.SetNoDataValue(-9999.)
+    outband.WriteArray(array)
+    outRasterSRS = osr.SpatialReference()
+    outRasterSRS.ImportFromWkt(projection)
+    outRaster.SetProjection(outRasterSRS.ExportToWkt())
+    outband.FlushCache()
+
+
+
+def main():
+    # define the indicators to be calculated
+    indicators = ['PLAND','CA','MESH','PD','SHAPE','MPS','AWMPFD']     
+    # the number of indicators
+    numIndicators = len(indicators)
+    
+    # allow GDAL to throw Python Exceptions
+    gdal.UseExceptions()
+
+    #os.environ['BEAM_HOME'] = os.path.join(ciop.application_dir, '/opt/beam-5.0')
+    #os.environ['PATH'] = os.path.join(os.environ['BEAM_HOME'], 'bin:' + os.environ['PATH'])
+
+    # create the output folder to store the output products and export it
+    output_path = os.path.join(ciop.tmp_dir, 'output')
+    os.makedirs(output_path)
+
+
+    # Loops over all the inputs
+    for inputfile in sys.stdin:
+        # report activity in log
+        ciop.log('INFO', 'The input file is: ' + inputfile)
+
+        # retrieve the MER_RR__1P product to the local temporary folder TMPDIR
+        # provided by the framework (this folder is only used by this process)
+        # the ciop.copy function will use one of online resource available in
+        # the metadata to copy it to the TMPDIR folder
+        # the funtion returns the local path so the variable retrieved
+        # contains the local path to the MERIS product
+        retrieved = ciop.copy(inputfile, ciop.tmp_dir)
+        outputname = os.path.basename(retrieved)
+
+        ciop.log('INFO', 'Retrieved ' + os.path.basename(retrieved))
+
+    # open the classes raster file
+    try:
+        classesDataset = gdal.Open(os.path.basename(ciop.copy(inputfile[0], ciop.tmp_dir)))
+    #except RuntimeError, e:    #python 2.x syntax
+    except RuntimeError as e:   #python 3 syntax
+        print('Classes file cannot be opened')
+        print(e)
+        sys.exit(1)
+    # open the object raster file
+    try:
+        objectsDataset = gdal.Open(os.path.basename(ciop.copy(inputfile[1], ciop.tmp_dir)))
+    #except RuntimeError, e:    #python 2.x syntax
+    except RuntimeError as e:   #python 3 syntax
+        print('Objects file cannot be opened')
+        print(e)
+        sys.exit(1)
+    
+    # find the pixel resolution
+    geoClasses = classesDataset.GetGeoTransform()
+    pixelSizeClasses = geoClasses[1]
+    geoObjects = objectsDataset.GetGeoTransform()
+    pixelSizeObjects = geoObjects[1]
+    if pixelSizeClasses == pixelSizeObjects:
+        pixelSize = pixelSizeClasses
+    else:
+        print('Classes and Objects files are not of the same resolution. ',
+              'They need to be rescaled to match')
+        sys.exit(1)
+    # retrieve the projection from one of the files
+    projection = classesDataset.GetProjectionRef()
+        
+    
+    # load the parameters
+#    # pixel size (in meters)
+#    pixelSize = ciop.getparam('pixelSize')      
+    # size of each constructed cell (in meters)
+    cellSize = ciop.getparam('cellSize')
+    # step that the sliding window moves to form the next cell (in meters)
+    step = ciop.getparam('step')
+
+    # log the value, it helps debugging. 
+    # the log entry is available in the process stderr 
+    ciop.log('DEBUG', 'The pixel size is: ' + pixelSize + ' m')
+    ciop.log('DEBUG', 'The cell size used is: ' + cellSize + ' m')
+    ciop.log('DEBUG', 'The step used is: ' + step + ' m')
+    
+    # read the raster data
+    try:
+        classesBand = classesDataset.GetRasterBand(1)
+    #except RuntimeError, e:    #python 2.x syntax
+    except RuntimeError as e:   #python 3 syntax
+        print('No band data in the classes file')
+        print(e)
+        sys.exit(1)
+    try:
+        objectsBand = objectsDataset.GetRasterBand(1)
+    #except RuntimeError, e:    #python 2.x syntax
+    except RuntimeError as e:   #python 3 syntax
+        print('No band data in the objects file')
+        print(e)
+        sys.exit(1)
+
+
+    # read the raster datasets as numpy arrays
+    classesArray = raster2array(classesDataset)
+    objectsArray = raster2array(objectsDataset)
+    # delete the datasets to free up memory
+    del classesDataset,objectsDataset
+
+    # if the dimensions of the two images are not the same, exit
+    if classesArray.shape != objectsArray.shape:
+        print('The classes and pbjects raster file are of different dimensions.')
+        sys.exit(1)
+    # array dimensions
+    xDim = classesArray.shape[0]
+    yDim = classesArray.shape[1]
+    
+    # if read as float values, convert them to int
+    classesArray = classesArray.astype(int)
+    objectsArray = objectsArray.astype(int)
+
+    # define a vector with the existing classes in the total area
+    classes = np.unique(classesArray)
+    # remove the no data class of value 0
+    zeroInd = np.where(classes==0)
+    if zeroInd[0].size !=0:
+        classes = np.delete(classes,zeroInd)
+    
+    # create a dict 'class2objects' to map each class with the objects
+    # belonging to it, a dict 'object2class' to map each object to the class 
+    # it belongs to, and a dict, object2pixels, to map each object with the
+    # pixels it includes
+    class2objects = {}
+    object2class = {}
+    object2pixels = {}
+    for x in range(xDim):
+        for y in range(yDim):
+            objectID = objectsArray[x][y]
+            classID = classesArray[x][y]
+            # considering 0 as the no data value for the two images
+            if objectID!=0 and classID!=0:
+                # represent pixel coordinates by a single number
+                # (in lexicographic ordering) to save storage space
+                pixelID = y*xDim + x
+                if objectID not in object2pixels:
+                    object2class[objectID] = classID
+                    object2pixels[objectID] = []
+                    if classID not in class2objects:
+                        class2objects[classID] = []
+                    class2objects[classID].append(objectID)
+                object2pixels[objectID].append(pixelID)
+    # delete the arrays to free up memory
+    del classesArray,objectsArray
+
+    
+    # calculate indicator values for each object in a dict
+    print("Starting calculating the indicators...")
+    indValues = calcIndicatorValues(classes,class2objects,xDim,yDim,object2pixels,pixelSize,cellSize,step,indicators)
+    print("Indicators calculated!")
+
+
+
+
+    print("Saving the results in GDAL files")
+    # for each indicator, create an array of its values and save it as GDAL file
+    for ind in range(numIndicators):
+        # create the array
+        indArray = formIndArray(xDim,yDim,object2pixels,indValues,ind)
+        # save it as GDAL file
+        if not os.path.exists('./outputs'):
+            os.mkdir('./outputs')
+        pathName = './outputs/' + indicators[ind] + '.tiff'
+        array2raster(indArray,pathName,geoClasses,projection)
+        
+    # save as csv
+    print("saving values as csv...")
+    headings = ['Object ID'] + indicators + ['Class ID']
+    with open("./outputs/indValues.csv","w",newline ='') as f:
+        csvWriter = csv.writer(f)
+        csvWriter.writerow(headings)
+        for key in indValues.keys():
+            # create a list to be printed with the information of the object
+            tempList = [key]
+            # append the indicator values
+            tempList.extend(list(indValues[key]))
+            # append the object class
+            tempList.extend([object2class[key]])
+            csvWriter.writerow(tempList)
+    print("Done!")
+
+
+
+
+    # compress the ESA BEAM results
+    os.chdir(output_path)
+    with tarfile.open(os.path.join(output_path, outputname + '.tar.gz'), "w:gz") as tar:
+        tar.add(outputname + '.dim')
+        tar.add(outputname + '.data')
+        tar.close()
+
+    os.chdir(ciop.tmp_dir)
+   
+    # publish the compressed results
+    ciop.log('INFO', 'Publishing ' + outputname + '.tar.gz') 
+    ciop.publish(os.path.join(output_path, outputname + '.tar.gz'))        
+
+
+
+
+
+try:
+    main()
+except SystemExit as e:
+    if e.args[0]:
+         clean_exit(e.args[0])
+    raise
+else:
+    atexit.register(clean_exit, 0)
+
+
