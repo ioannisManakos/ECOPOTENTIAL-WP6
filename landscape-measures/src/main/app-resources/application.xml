@@ -4,7 +4,6 @@
     <jobTemplate id="land-measures">
       <streamingExecutable>/application/calculation/run</streamingExecutable>
       <defaultParameters>
-        <parameter id="pixelSize">2</parameter>
         <parameter id="cellSize">1000</parameter>
         <parameter id="pixelSize">500</parameter>
       </defaultParameters>
