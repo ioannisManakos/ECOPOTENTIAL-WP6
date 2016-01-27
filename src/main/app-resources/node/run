@@ -7,7 +7,7 @@ import math, osr, csv
 import numpy as np
 import osgeo.gdal as gdal
 from gdalconst import *
-from skimage.measure import label
+from skimage.morphology import label
 import atexit
 from lxml import etree
 from subprocess import call
@@ -162,7 +162,7 @@ def calculateMesh(C,pSize):
     # pixels with 0 value in C as -1
     if np.sum(C) == 0:
         return 0
-    conCom = label(C,connectivity=2,background=0)
+    conCom = label(C,neighbors=8,background=0)
     # number of patches
     numPatches = np.amax(conCom) + 1
     # for each patch, calculate its area in meters
@@ -186,7 +186,7 @@ def calculatePd(C,pSize):
     # pixels with 0 value in C as -1
     if np.sum(C) == 0:
         return 0
-    conCom = label(C,connectivity=2,background=0)
+    conCom = label(C,neighbors=8,background=0)
     # number of patches
     numPatches = np.amax(conCom) + 1
     # total area in square meters
@@ -204,7 +204,7 @@ def calculateShape(C,pSize):
     # pixels with 0 value in C as -1
     if np.sum(C) == 0:
         return 0
-    conCom = label(C,connectivity=2,background=0)
+    conCom = label(C,neighbors=8,background=0)
     # number of patches
     numPatches = np.amax(conCom) + 1
     # for each patch, calculate SHAPE
@@ -243,7 +243,7 @@ def calculateMps(C,pSize):
     # dimensions as C is returned, assigning the same label to connected
     # pixels, ranging from 0 to (the number of connected patches - 1), setting
     # pixels with 0 value in C as -1
-    conCom = label(C,connectivity=2,background=0)
+    conCom = label(C,neighbors=8,background=0)
     # number of patches
     numPatches = np.amax(conCom) + 1
     # MPS
@@ -259,7 +259,7 @@ def calculateAWMPFD(C,pSize):
     # dimensions as C is returned, assigning the same label to connected
     # pixels, ranging from 0 to (the number of connected patches - 1), setting
     # pixels with 0 value in C as -1
-    conCom = label(C,connectivity=2,background=0)
+    conCom = label(C,neighbors=8,background=0)
     # number of patches
     numPatches = np.amax(conCom) + 1
     # for each connected component (patch) find the area and perimeter
@@ -506,9 +506,9 @@ def main():
 
     # log the value, it helps debugging. 
     # the log entry is available in the process stderr 
-    ciop.log('DEBUG', 'The pixel size is: ' + pixelSize + ' m')
-    ciop.log('DEBUG', 'The cell size used is: ' + cellSize + ' m')
-    ciop.log('DEBUG', 'The step used is: ' + step + ' m')
+    ciop.log('INFO', 'The pixel size is: ' + pixelSize + ' m')
+    ciop.log('INFO', 'The cell size used is: ' + cellSize + ' m')
+    ciop.log('INFO', 'The step used is: ' + step + ' m')
     
     # read the raster data
     try:
@@ -601,7 +601,7 @@ def main():
     # save as csv
     print("saving values as csv...")
     headings = ['Object ID'] + indicators + ['Class ID']
-    with open("./outputs/indValues.csv","w",newline ='') as f:
+    with open("./outputs/indValues.csv","w") as f:
         csvWriter = csv.writer(f)
         csvWriter.writerow(headings)
         for key in indValues.keys():
