@@ -3,7 +3,7 @@
 import site
 import os
 import sys
-import math, osr, csv, re
+import math, csv, re
 import numpy as np
 import osgeo.gdal as gdal
 from gdalconst import *
@@ -455,28 +455,28 @@ def main():
         inputfile = inputfile.split('*****')
         # retrieve the files with the classes and the object ids
         retrievedClasses = ciop.copy(inputfile[0],ciop.tmp_dir,False)
-        cioplog.log('INFO', 'retrievedClasses: ' + retrievedClasses)
+        ciop.log('INFO', 'retrievedClasses: ' + retrievedClasses)
         assert(retrievedClasses)
         outputnameClasses = os.path.basename(retrievedClasses)
-        cioplog.log('INFO', 'Retrieved ' + outputnameClasses)
+        ciop.log('INFO', 'Retrieved ' + outputnameClasses)
         retrievedObjects = ciop.copy(inputfile[1],ciop.tmp_dir,False)
-        cioplog.log('INFO', 'retrievedObjects: ' + retrievedObjects)
+        ciop.log('INFO', 'retrievedObjects: ' + retrievedObjects)
         assert(retrievedObjects)
         outputnameObjects = os.path.basename(retrievedObjects)
-        cioplog.log('INFO', 'Retrieved ' + outputnameObjects)
+        ciop.log('INFO', 'Retrieved ' + outputnameObjects)
         # unzip the files in the /tmp directory
         os.chdir(ciop.tmp_dir)
         fh = open(outputnameClasses,'rb')
         z = zipfile.ZipFile(fh)
         classesName = z.namelist[0]
         z.extract(classesName)
-        cioplog.log('INFO', classesName + ' extracted in ' + ciop.tmp_dir)
+        ciop.log('INFO', classesName + ' extracted in ' + ciop.tmp_dir)
 
         fh = open(outputnameObjects,'rb')
         z = zipfile.ZipFile(fh)
         objectsName = z.namelist[0]
         z.extract(objectsName,ciop.tmp_dir)
-        cioplog.log('INFO', objectsName + ' extracted in ' + ciop.tmp_dir)
+        ciop.log('INFO', objectsName + ' extracted in ' + ciop.tmp_dir)
 
         # create the output folder to store the output products and export it
         # Supposing the classes (and similarly the objects)  file is named following the 
@@ -489,7 +489,7 @@ def main():
         else:
            match = re.search('([\w.-]+[_class]+',classesName)
            if match:
-               folderName = match.group(1))
+               folderName = match.group(1)
            else:
                folderName = classesName
         output_path = os.path.join(ciop.tmp_dir, 'outputs/' + folderName)
@@ -625,7 +625,7 @@ def main():
         # save as csv
         print("saving values as csv...")
         headings = ['Object ID'] + indicators + ['Class ID']
-        with open(os.path.join(output_path,'indValues.csv','w') as f:
+        with open(os.path.join(output_path,"indValues.csv"),"w") as f:
             csvWriter = csv.writer(f)
             csvWriter.writerow(headings)
             for key in indValues.keys():
