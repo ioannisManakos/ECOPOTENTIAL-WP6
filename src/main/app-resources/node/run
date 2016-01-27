@@ -3,7 +3,7 @@
 import site
 import os
 import sys
-import math, osr, csv
+import math, osr, csv, re
 import numpy as np
 import osgeo.gdal as gdal
 from gdalconst import *
@@ -12,7 +12,7 @@ import atexit
 from lxml import etree
 from subprocess import call
 import tarfile
-
+import zipfile
 
 # add cioppy to the search path
 sys.path.append('/usr/lib/ciop/python/')
@@ -443,192 +443,213 @@ def main():
     #os.environ['BEAM_HOME'] = os.path.join(ciop.application_dir, '/opt/beam-5.0')
     #os.environ['PATH'] = os.path.join(os.environ['BEAM_HOME'], 'bin:' + os.environ['PATH'])
 
-    # create the output folder to store the output products and export it
-    output_path = os.path.join(ciop.tmp_dir, 'output')
-    os.makedirs(output_path)
 
 
     # Loops over all the inputs
     for inputfile in sys.stdin:
         # report activity in log
         ciop.log('INFO', 'The input file is: ' + inputfile)
+	# 'inputfile' contains the urls of both the file with the classes and the object ids
+	# of the selected area, separated by five asterisks '*****'
+        # split the inputfile string in a list with the names of the two files
+        inputfile = inputfile.split('*****')
+        # retrieve the files with the classes and the object ids
+        retrievedClasses = ciop.copy(inputfile[0],ciop.tmp_dir,False)
+        cioplog.log('INFO', 'retrievedClasses: ' + retrievedClasses)
+        assert(retrievedClasses)
+        outputnameClasses = os.path.basename(retrievedClasses)
+        cioplog.log('INFO', 'Retrieved ' + outputnameClasses)
+        retrievedObjects = ciop.copy(inputfile[1],ciop.tmp_dir,False)
+        cioplog.log('INFO', 'retrievedObjects: ' + retrievedObjects)
+        assert(retrievedObjects)
+        outputnameObjects = os.path.basename(retrievedObjects)
+        cioplog.log('INFO', 'Retrieved ' + outputnameObjects)
+        # unzip the files in the /tmp directory
+        os.chdir(ciop.tmp_dir)
+        fh = open(outputnameClasses,'rb')
+        z = zipfile.ZipFile(fh)
+        classesName = z.namelist[0]
+        z.extract(classesName)
+        cioplog.log('INFO', classesName + ' extracted in ' + ciop.tmp_dir)
 
-        # retrieve the MER_RR__1P product to the local temporary folder TMPDIR
-        # provided by the framework (this folder is only used by this process)
-        # the ciop.copy function will use one of online resource available in
-        # the metadata to copy it to the TMPDIR folder
-        # the funtion returns the local path so the variable retrieved
-        # contains the local path to the MERIS product
-        retrieved = ciop.copy(inputfile, ciop.tmp_dir)
-        outputname = os.path.basename(retrieved)
+        fh = open(outputnameObjects,'rb')
+        z = zipfile.ZipFile(fh)
+        objectsName = z.namelist[0]
+        z.extract(objectsName,ciop.tmp_dir)
+        cioplog.log('INFO', objectsName + ' extracted in ' + ciop.tmp_dir)
 
-        ciop.log('INFO', 'Retrieved ' + os.path.basename(retrieved))
-
-    # open the classes raster file
-    try:
-        classesDataset = gdal.Open(os.path.basename(ciop.copy(inputfile[0], ciop.tmp_dir)))
-    #except RuntimeError, e:    #python 2.x syntax
-    except RuntimeError as e:   #python 3 syntax
-        print('Classes file cannot be opened')
-        print(e)
-        sys.exit(1)
-    # open the object raster file
-    try:
-        objectsDataset = gdal.Open(os.path.basename(ciop.copy(inputfile[1], ciop.tmp_dir)))
-    #except RuntimeError, e:    #python 2.x syntax
-    except RuntimeError as e:   #python 3 syntax
-        print('Objects file cannot be opened')
-        print(e)
-        sys.exit(1)
+        # create the output folder to store the output products and export it
+        # Supposing the classes (and similarly the objects)  file is named following the 
+        # convention [Area]_Classes.tif, extract the name of the area and use it as 
+        # the output folder name. If no '_Classes' in the name, use as output folder name
+        # the entire name of the classes file
+        match = re.search('([\w.-]+[_Class]+',classesName)
+        if match:
+            folderName = match.group(1)
+        else:
+           match = re.search('([\w.-]+[_class]+',classesName)
+           if match:
+               folderName = match.group(1))
+           else:
+               folderName = classesName
+        output_path = os.path.join(ciop.tmp_dir, 'outputs/' + folderName)
+        os.makedirs(output_path)
+    	
+        # open the classes raster file
+        try:
+            classesDataset = gdal.Open(outputnameClasses)
+    	except RuntimeError, e:    #python 2.x syntax
+        #except RuntimeError as e:   #python 3 syntax
+            print('Classes file cannot be opened')
+            print(e)
+            sys.exit(1)
+        # open the object raster file
+        try:
+            objectsDataset = gdal.Open(outputnameObjects)
+        except RuntimeError, e:    #python 2.x syntax
+        #except RuntimeError as e:   #python 3 syntax
+            print('Objects file cannot be opened')
+            print(e)
+            sys.exit(1)
     
-    # find the pixel resolution
-    geoClasses = classesDataset.GetGeoTransform()
-    pixelSizeClasses = geoClasses[1]
-    geoObjects = objectsDataset.GetGeoTransform()
-    pixelSizeObjects = geoObjects[1]
-    if pixelSizeClasses == pixelSizeObjects:
-        pixelSize = pixelSizeClasses
-    else:
-        print('Classes and Objects files are not of the same resolution. ',
-              'They need to be rescaled to match')
-        sys.exit(1)
-    # retrieve the projection from one of the files
-    projection = classesDataset.GetProjectionRef()
+        # find the pixel resolution
+        geoClasses = classesDataset.GetGeoTransform()
+        pixelSizeClasses = geoClasses[1]
+        geoObjects = objectsDataset.GetGeoTransform()
+        pixelSizeObjects = geoObjects[1]
+        if pixelSizeClasses == pixelSizeObjects:
+             pixelSize = pixelSizeClasses
+        else:
+             print('Classes and Objects files are not of the same resolution. ',
+                   'They need to be rescaled to match')
+             sys.exit(1)
+        # retrieve the projection from one of the files
+        projection = classesDataset.GetProjectionRef()
         
     
-    # load the parameters
-#    # pixel size (in meters)
-#    pixelSize = ciop.getparam('pixelSize')      
-    # size of each constructed cell (in meters)
-    cellSize = ciop.getparam('cellSize')
-    # step that the sliding window moves to form the next cell (in meters)
-    step = ciop.getparam('step')
+        # load the parameters
+        # size of each constructed cell (in meters)
+        cellSize = ciop.getparam('cellSize')
+        # step that the sliding window moves to form the next cell (in meters)
+        step = ciop.getparam('step')
 
-    # log the value, it helps debugging. 
-    # the log entry is available in the process stderr 
-    ciop.log('INFO', 'The pixel size is: ' + pixelSize + ' m')
-    ciop.log('INFO', 'The cell size used is: ' + cellSize + ' m')
-    ciop.log('INFO', 'The step used is: ' + step + ' m')
+        # log the value, it helps debugging. 
+        # the log entry is available in the process stderr 
+        ciop.log('INFO', 'The pixel size is: ' + pixelSize + ' m')
+        ciop.log('INFO', 'The cell size used is: ' + cellSize + ' m')
+        ciop.log('INFO', 'The step used is: ' + step + ' m')
     
-    # read the raster data
-    try:
-        classesBand = classesDataset.GetRasterBand(1)
-    #except RuntimeError, e:    #python 2.x syntax
-    except RuntimeError as e:   #python 3 syntax
-        print('No band data in the classes file')
-        print(e)
-        sys.exit(1)
-    try:
-        objectsBand = objectsDataset.GetRasterBand(1)
-    #except RuntimeError, e:    #python 2.x syntax
-    except RuntimeError as e:   #python 3 syntax
-        print('No band data in the objects file')
-        print(e)
-        sys.exit(1)
+        # read the raster data
+        try:
+            classesBand = classesDataset.GetRasterBand(1)
+        except RuntimeError, e:    #python 2.x syntax
+        #except RuntimeError as e:   #python 3 syntax
+            print('No band data in the classes file')
+            print(e)
+            sys.exit(1)
+        try:
+            objectsBand = objectsDataset.GetRasterBand(1)
+        except RuntimeError, e:    #python 2.x syntax
+        #except RuntimeError as e:   #python 3 syntax
+            print('No band data in the objects file')
+            print(e)
+            sys.exit(1)
 
 
-    # read the raster datasets as numpy arrays
-    classesArray = raster2array(classesDataset)
-    objectsArray = raster2array(objectsDataset)
-    # delete the datasets to free up memory
-    del classesDataset,objectsDataset
+        # read the raster datasets as numpy arrays
+        classesArray = raster2array(classesDataset)
+        objectsArray = raster2array(objectsDataset)
+        # delete the datasets to free up memory
+        del classesDataset,objectsDataset
 
-    # if the dimensions of the two images are not the same, exit
-    if classesArray.shape != objectsArray.shape:
-        print('The classes and pbjects raster file are of different dimensions.')
-        sys.exit(1)
-    # array dimensions
-    xDim = classesArray.shape[0]
-    yDim = classesArray.shape[1]
+        # if the dimensions of the two images are not the same, exit
+        if classesArray.shape != objectsArray.shape:
+            print('The classes and pbjects raster file are of different dimensions.')
+            sys.exit(1)
+        # array dimensions
+        xDim = classesArray.shape[0]
+        yDim = classesArray.shape[1]
     
-    # if read as float values, convert them to int
-    classesArray = classesArray.astype(int)
-    objectsArray = objectsArray.astype(int)
+        # if read as float values, convert them to int
+        classesArray = classesArray.astype(int)
+        objectsArray = objectsArray.astype(int)
 
-    # define a vector with the existing classes in the total area
-    classes = np.unique(classesArray)
-    # remove the no data class of value 0
-    zeroInd = np.where(classes==0)
-    if zeroInd[0].size !=0:
-        classes = np.delete(classes,zeroInd)
+        # define a vector with the existing classes in the total area
+        classes = np.unique(classesArray)
+        # remove the no data class of value 0
+        zeroInd = np.where(classes==0)
+        if zeroInd[0].size !=0:
+            classes = np.delete(classes,zeroInd)
     
-    # create a dict 'class2objects' to map each class with the objects
-    # belonging to it, a dict 'object2class' to map each object to the class 
-    # it belongs to, and a dict, object2pixels, to map each object with the
-    # pixels it includes
-    class2objects = {}
-    object2class = {}
-    object2pixels = {}
-    for x in range(xDim):
-        for y in range(yDim):
-            objectID = objectsArray[x][y]
-            classID = classesArray[x][y]
-            # considering 0 as the no data value for the two images
-            if objectID!=0 and classID!=0:
-                # represent pixel coordinates by a single number
-                # (in lexicographic ordering) to save storage space
-                pixelID = y*xDim + x
-                if objectID not in object2pixels:
-                    object2class[objectID] = classID
-                    object2pixels[objectID] = []
-                    if classID not in class2objects:
-                        class2objects[classID] = []
-                    class2objects[classID].append(objectID)
-                object2pixels[objectID].append(pixelID)
-    # delete the arrays to free up memory
-    del classesArray,objectsArray
-
-    
-    # calculate indicator values for each object in a dict
-    print("Starting calculating the indicators...")
-    indValues = calcIndicatorValues(classes,class2objects,xDim,yDim,object2pixels,pixelSize,cellSize,step,indicators)
-    print("Indicators calculated!")
+        # create a dict 'class2objects' to map each class with the objects
+        # belonging to it, a dict 'object2class' to map each object to the class 
+        # it belongs to, and a dict, object2pixels, to map each object with the
+        # pixels it includes
+        class2objects = {}
+        object2class = {}
+        object2pixels = {}
+        for x in range(xDim):
+            for y in range(yDim):
+                objectID = objectsArray[x][y]
+                classID = classesArray[x][y]
+                # considering 0 as the no data value for the two images
+                if objectID!=0 and classID!=0:
+                    # represent pixel coordinates by a single number
+                    # (in lexicographic ordering) to save storage space
+                    pixelID = y*xDim + x
+                    if objectID not in object2pixels:
+                        object2class[objectID] = classID
+                        object2pixels[objectID] = []
+                        if classID not in class2objects:
+                            class2objects[classID] = []
+                        class2objects[classID].append(objectID)
+                    object2pixels[objectID].append(pixelID)
+        # delete the arrays to free up memory
+        del classesArray,objectsArray
 
 
+        # calculate indicator values for each object in a dict
+        print("Starting calculating the indicators...")
+        indValues = calcIndicatorValues(classes,class2objects,xDim,yDim,object2pixels,pixelSize,cellSize,step,indicators)
+        print("Indicators calculated!")
 
-
-    print("Saving the results in GDAL files")
-    # for each indicator, create an array of its values and save it as GDAL file
-    for ind in range(numIndicators):
-        # create the array
-        indArray = formIndArray(xDim,yDim,object2pixels,indValues,ind)
-        # save it as GDAL file
-        if not os.path.exists('./outputs'):
-            os.mkdir('./outputs')
-        pathName = './outputs/' + indicators[ind] + '.tiff'
-        array2raster(indArray,pathName,geoClasses,projection)
+        print("Saving the results in GDAL files")
+        # for each indicator, create an array of its values and save it as GDAL file
+        for ind in range(numIndicators):
+            # create the array
+            indArray = formIndArray(xDim,yDim,object2pixels,indValues,ind)
+            # save it as GDAL file
+            pathName = os.path.join(output_path, indicators[ind] + '.tiff')
+            array2raster(indArray,pathName,geoClasses,projection)
         
-    # save as csv
-    print("saving values as csv...")
-    headings = ['Object ID'] + indicators + ['Class ID']
-    with open("./outputs/indValues.csv","w") as f:
-        csvWriter = csv.writer(f)
-        csvWriter.writerow(headings)
-        for key in indValues.keys():
-            # create a list to be printed with the information of the object
-            tempList = [key]
-            # append the indicator values
-            tempList.extend(list(indValues[key]))
-            # append the object class
-            tempList.extend([object2class[key]])
-            csvWriter.writerow(tempList)
-    print("Done!")
+        # save as csv
+        print("saving values as csv...")
+        headings = ['Object ID'] + indicators + ['Class ID']
+        with open(os.path.join(output_path,'indValues.csv','w') as f:
+            csvWriter = csv.writer(f)
+            csvWriter.writerow(headings)
+            for key in indValues.keys():
+                # create a list to be printed with the information of the object
+                tempList = [key]
+                # append the indicator values
+                tempList.extend(list(indValues[key]))
+                # append the object class
+                tempList.extend([object2class[key]])
+                csvWriter.writerow(tempList)
 
 
+        # compress the results
+        os.chdir(output_path)
+        with tarfile.open(os.path.join(output_path, folderName + '_landmeasures.tar.gz'), "w:gz") as tar:
+            tar.add(outputname + '.dim')
+            tar.add(outputname + '.data')
+            tar.close()
 
-
-    # compress the ESA BEAM results
-    os.chdir(output_path)
-    with tarfile.open(os.path.join(output_path, outputname + '.tar.gz'), "w:gz") as tar:
-        tar.add(outputname + '.dim')
-        tar.add(outputname + '.data')
-        tar.close()
-
-    os.chdir(ciop.tmp_dir)
+        os.chdir(ciop.tmp_dir)
    
-    # publish the compressed results
-    ciop.log('INFO', 'Publishing ' + outputname + '.tar.gz') 
-    ciop.publish(os.path.join(output_path, outputname + '.tar.gz'))        
+        # publish the compressed results
+        ciop.log('INFO', 'Publishing ' + folderName + '_landmeasures.tar.gz') 
+        ciop.publish(os.path.join(output_path, folderName + '_landmeasures.tar.gz'))        
 
 
 
@@ -636,7 +657,7 @@ def main():
 
 try:
     main()
-except SystemExit as e:
+except SystemExit, e:
     if e.args[0]:
          clean_exit(e.args[0])
     raise
