@@ -470,12 +470,14 @@ def main():
         z = zipfile.ZipFile(fh)
         classesName = z.namelist()[0]
         z.extract(classesName)
+        z.close()
         ciop.log('INFO', classesName + ' extracted in ' + ciop.tmp_dir)
 
         fh = open(zippedNameObjects,'rb')
         z = zipfile.ZipFile(fh)
         objectsName = z.namelist()[0]
         z.extract(objectsName,ciop.tmp_dir)
+        z.close()
         ciop.log('INFO', objectsName + ' extracted in ' + ciop.tmp_dir)
 
         # create the output folder to store the output products and export it
@@ -637,24 +639,14 @@ def main():
         # compress the results
         os.chdir(os.path.join(ciop.tmp_dir, 'outputs/'))
         filename = folderName + '_landmeasures'
-        fh = open(filename,'w')
-        z = zipfile.ZipFile(fh)
-        z.write(folderName,filename)
-        ciop.log('INFO', 'Results compressed as ' + filename)
+        shutil.make_archive(filename,'zip',folderName)
+        zippedResults = filename + '.zip'
+        ciop.log('INFO', 'Results compressed as ' + zippedResults)
 
-        
-        # # compress the results
-        # os.chdir(output_path)
-        # with tarfile.open(os.path.join(output_path, folderName + '_landmeasures.tar.gz'), "w:gz") as tar:
-            # tar.add(outputname + '.dim')
-            # tar.add(outputname + '.data')
-            # tar.close()
-
-        os.chdir(ciop.tmp_dir)
-   
         # publish the compressed results
-        ciop.log('INFO', 'Publishing ' + filename) 
-        ciop.publish(os.path.join(output_path, filename))        
+        os.chdir(ciop.tmp_dir)
+        ciop.log('INFO', 'Publishing ' + zippedResults) 
+        ciop.publish(os.path.join(output_path, zippedResults))        
 
 
 try:
