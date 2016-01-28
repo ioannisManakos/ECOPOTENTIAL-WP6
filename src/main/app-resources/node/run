@@ -625,7 +625,7 @@ def main():
                 # append the object class
                 tempList.extend([object2class[key]])
                 csvWriter.writerow(tempList)
-        ciop.log('INFO', 'Indicator values saved as indValues.csv under /tmp/outputs/' + folderName + '/ directory!'!')
+        ciop.log('INFO', 'Indicator values saved as indValues.csv under /tmp/outputs/' + folderName + '/ directory!')
                 
         # compress the results
         ciop.log('INFO', 'Compressing the results...')
@@ -634,7 +634,7 @@ def main():
         filename = folderName + '_landmeasures'
         shutil.make_archive(filename,'zip',folderName)
         zippedResults = filename + '.zip'
-        ciop.log('INFO', 'Results compressed as ' + zippedResults + ' under the /tmp/outputs/ directory')
+        ciop.log('INFO', 'Results compressed as ' + zippedResults + ' under the /tmp/outputs/ directory!')
 
         # publish the compressed results
         os.chdir(ciop.tmp_dir)
