@@ -449,8 +449,8 @@ def main():
     for inputfile in sys.stdin:
         # report activity in log
         ciop.log('INFO', 'The input file is: ' + inputfile)
-	# 'inputfile' contains the urls of both the file with the classes and the object ids
-	# of the selected area, separated by five asterisks '*****'
+        # 'inputfile' contains the urls of both the file with the classes and the object ids
+        # of the selected area, separated by five asterisks '*****'
         # split the inputfile string in a list with the names of the two files
         inputfile = inputfile.split('*****')
         # retrieve the files with the classes and the object ids
@@ -500,7 +500,7 @@ def main():
         # open the classes raster file
         try:
             classesDataset = gdal.Open(outputnameClasses)
-    	except RuntimeError, e:    #python 2.x syntax
+        except RuntimeError, e:    #python 2.x syntax
         #except RuntimeError as e:   #python 3 syntax
             print('Classes file cannot be opened')
             print(e)
@@ -661,7 +661,11 @@ try:
     main()
 except SystemExit, e:
     if e.args[0]:
+<<<<<<< HEAD
         ciop.log('INFO','e.args[0] is: ' + e.args[0])
+=======
+        ciop.log('INFO', 'e.args[0]: ' + e.args[0])
+>>>>>>> 3312484855444b964fd27c722f7204732bbaf520
         clean_exit(e.args[0])
     raise
 else:
