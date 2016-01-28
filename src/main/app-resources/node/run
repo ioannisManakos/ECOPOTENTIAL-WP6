@@ -506,7 +506,7 @@ def main():
             sys.exit(1)
         # open the object raster file
         try:
-            objectsDataset = gdal.Open(os.path.join(ciop.tmp_dir,objectsName)
+            objectsDataset = gdal.Open(os.path.join(ciop.tmp_dir,objectsName))
         except RuntimeError, e:    #python 2.x syntax
         #except RuntimeError as e:   #python 3 syntax
             ciop.log('INFO','Objects file cannot be opened')
