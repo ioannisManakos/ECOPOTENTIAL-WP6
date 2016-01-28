@@ -376,7 +376,11 @@ def calcIndicatorValues(classes,class2objects,xDim,yDim,object2pixels,pixelSize,
     indValues = {}
     # calculate the indicators for each class    
     for focalClass in classes:
-        ciop.log('DEBUG','')
+        # dummy printing to avoid sandob interrupt the process as inactive or infinite loop;
+        # it seems that if no signal is sent through ciop to the sandbox (e.g. a ciop.log
+        # message) after 300 seconds, the sandbox considers that something is wrong and
+        # interrupts the process
+        ciop.log('INFO','Indicators for class' + str(focalClass))
         objectList = class2objects[focalClass]
         if (objectList):
             # construct binary images indicating the pixels that belong
