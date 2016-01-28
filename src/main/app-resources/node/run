@@ -661,7 +661,8 @@ try:
     main()
 except SystemExit, e:
     if e.args[0]:
-         clean_exit(e.args[0])
+        ciop.log('INFO','e.args[0] is: ' + e.args[0])
+        clean_exit(e.args[0])
     raise
 else:
     atexit.register(clean_exit, 0)
