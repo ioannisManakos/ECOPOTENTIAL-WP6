@@ -3,7 +3,7 @@
 import site
 import os
 import sys
-import math, csv, re, osr
+import math, csv, re, osr, shutil
 import numpy as np
 import osgeo.gdal as gdal
 from gdalconst import *
