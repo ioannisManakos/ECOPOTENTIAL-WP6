@@ -528,9 +528,9 @@ def main():
     
         # load the parameters
         # size of each constructed cell (in meters)
-        cellSize = ciop.getparam('cellSize')
+        cellSize = int(ciop.getparam('cellSize'))
         # step that the sliding window moves to form the next cell (in meters)
-        step = ciop.getparam('step')
+        step = int(ciop.getparam('step'))
 
         # log the value, it helps debugging. 
         # the log entry is available in the process stderr 
