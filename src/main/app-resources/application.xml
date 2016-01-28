@@ -5,7 +5,7 @@
       <streamingExecutable>/application/node/run</streamingExecutable>
       <defaultParameters>
         <parameter id="cellSize">1000</parameter>
-        <parameter id="pixelSize">500</parameter>
+        <parameter id="step">500</parameter>
       </defaultParameters>
     </jobTemplate>
   </jobTemplates>
