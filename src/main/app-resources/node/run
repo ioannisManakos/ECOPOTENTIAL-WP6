@@ -468,13 +468,13 @@ def main():
         os.chdir(ciop.tmp_dir)
         fh = open(outputnameClasses,'rb')
         z = zipfile.ZipFile(fh)
-        classesName = z.namelist[0]
+        classesName = z.namelist()[0]
         z.extract(classesName)
         ciop.log('INFO', classesName + ' extracted in ' + ciop.tmp_dir)
 
         fh = open(outputnameObjects,'rb')
         z = zipfile.ZipFile(fh)
-        objectsName = z.namelist[0]
+        objectsName = z.namelist()[0]
         z.extract(objectsName,ciop.tmp_dir)
         ciop.log('INFO', objectsName + ' extracted in ' + ciop.tmp_dir)
 
