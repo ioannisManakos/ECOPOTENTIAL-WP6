@@ -3,11 +3,11 @@
 import site
 import os
 import sys
-import math, csv, re
+import math, csv, re, osr
 import numpy as np
 import osgeo.gdal as gdal
 from gdalconst import *
-from skimage.morphology import label
+from skimage.measure import label
 import atexit
 from lxml import etree
 from subprocess import call
