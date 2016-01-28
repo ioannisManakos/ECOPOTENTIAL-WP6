@@ -41,7 +41,9 @@ ciop.log('INFO', 'Python DCS')
 SUCCESS = 0
 ERR_NOOPEN = 1
 ERR_NOBAND = 2
-ERR_NOINPUT=4
+ERR_RES = 3
+ERR_DIM = 4
+ERR_NOINPUT = 5
 
 # add a trap to exit gracefully
 def clean_exit(exit_code):
@@ -51,7 +53,9 @@ def clean_exit(exit_code):
    
     msg = {SUCCESS: 'Processing successfully concluded',
            ERR_NOOPEN: 'Cannot open a GDAL file',
-           ERR_NOEXPR: 'No expression provided',
+           ERR_NOBAND: 'No band data in the GDAL dataset',
+           ERR_RES: 'The input data are of different spatial resolution', 
+           ERR_DIM: 'The raster data are of different dimensions',
            ERR_NOINPUT: 'No input provided'}
  
     ciop.log(log_level, msg[exit_code])  
@@ -60,11 +64,10 @@ def clean_exit(exit_code):
 def opengdaldataset(filePath): 
     try:
         dtset = gdal.Open(filePath)
-    #except RuntimeError, e:    #python 2.x syntax
-    except RuntimeError as e:   #python 3 syntax
+    except RuntimeError as e:
         print('GDAL file cannot be opened')
         print(e)
-        sys.exit(1)
+        sys.exit(5)
     return dtset
 
 
@@ -72,9 +75,8 @@ def raster2array(gdalDataset):
     # read the raster data
     try:
         rasterData = gdalDataset.GetRasterBand(1)
-    #except RuntimeError, e:    #python 2.x syntax
-    except RuntimeError as e:   #python 3 syntax
-        print('No band data in the classes file')
+    except RuntimeError as e:
+        print('No band data in the file')
         print(e)
         sys.exit(2)
     
@@ -335,10 +337,8 @@ def gridCalculations(B,pSize,cellSize,step,indicatorName):
             
             # add the indicator value to the active pixels
             I[ix:ix+pCell,iy:iy+pCell] = I[ix:ix+pCell,iy:iy+pCell] + indValue*C;
-            #print("Array I:  shape = "+str(I.shape)+",  type: "+str(I.dtype))
             # update the array with the pixel appearances in cells
             inCells[ix:ix+pCell,iy:iy+pCell] = inCells[ix:ix+pCell,iy:iy+pCell] + 1;
-            #print("Array inCells:  shape = "+str(inCells.shape)+",  type: "+str(inCells.dtype))
 
     # for each pixel, average the values it has been assigned, for each
     # indicator
@@ -376,7 +376,6 @@ def calcIndicatorValues(classes,class2objects,xDim,yDim,object2pixels,pixelSize,
     indValues = {}
     # calculate the indicators for each class    
     for focalClass in classes:
-        print("Calculating indicators for focalClass: " + str(focalClass))
         objectList = class2objects[focalClass]
         if (objectList):
             # construct binary images indicating the pixels that belong
@@ -388,13 +387,11 @@ def calcIndicatorValues(classes,class2objects,xDim,yDim,object2pixels,pixelSize,
                 # calculate all indicators
                 numIndicators = len(indicators)
                 for ind in range(numIndicators):
-                    # print("calculating " + indicators[ind] + "...")
                     # calculate the indicators in a per pixel basis
                     I = gridCalculations(B,pixelSize,cellSize,step,indicators[ind]);
 
                     # calculate the indicators per object and update the
                     # indValues dict
-                    #print("Calculating the indicators per object...")
                     indValues = calculateObjectInd(I,objectList,object2pixels,indValues,ind,numIndicators)              
     return indValues
 
@@ -439,11 +436,6 @@ def main():
     
     # allow GDAL to throw Python Exceptions
     gdal.UseExceptions()
-
-    #os.environ['BEAM_HOME'] = os.path.join(ciop.application_dir, '/opt/beam-5.0')
-    #os.environ['PATH'] = os.path.join(os.environ['BEAM_HOME'], 'bin:' + os.environ['PATH'])
-
-
 
     # Loops over all the inputs
     for inputfile in sys.stdin:
@@ -521,9 +513,9 @@ def main():
         if pixelSizeClasses == pixelSizeObjects:
              pixelSize = pixelSizeClasses
         else:
-             print('Classes and Objects files are not of the same resolution. ',
+             ciop.log('INFO', 'Classes and Objects files are not of the same resolution. ',
                    'They need to be rescaled to match')
-             sys.exit(1)
+             sys.exit(3)
         # retrieve the projection from one of the files
         projection = classesDataset.GetProjectionRef()
         
@@ -544,14 +536,14 @@ def main():
         try:
             classesBand = classesDataset.GetRasterBand(1)
         except RuntimeError as e:
-            print('No band data in the classes file')
-            print(e)
+            ciop.log('INFO', 'No band data in the classes file')
+            ciop.log('INFO', e)
             sys.exit(2)
         try:
             objectsBand = objectsDataset.GetRasterBand(1)
-        except RuntimeError, e:
-            print('No band data in the objects file')
-            print(e)
+        except RuntimeError as e:
+            ciop.log('INFO', 'No band data in the objects file')
+            ciop.log('INFO', e)
             sys.exit(2)
 
 
@@ -563,8 +555,8 @@ def main():
 
         # if the dimensions of the two images are not the same, exit
         if classesArray.shape != objectsArray.shape:
-            print('The classes and pbjects raster file are of different dimensions.')
-            sys.exit(1)
+            ciop.log('INFO', 'The raster files are of different dimensions.')
+            sys.exit(4)
         # array dimensions
         xDim = classesArray.shape[0]
         yDim = classesArray.shape[1]
@@ -608,21 +600,22 @@ def main():
 
 
         # calculate indicator values for each object in a dict
-        print("Starting calculating the indicators...")
+        ciop.log('INFO', 'Calculating the indicators...')
         indValues = calcIndicatorValues(classes,class2objects,xDim,yDim,object2pixels,pixelSize,cellSize,step,indicators)
-        print("Indicators calculated!")
+        ciop.log('INFO', 'Indicators calculated!')
 
-        print("Saving the results in GDAL files")
+        ciop.log('INFO', 'Saving the results in GDAL files...')
         # for each indicator, create an array of its values and save it as GDAL file
         for ind in range(numIndicators):
             # create the array
             indArray = formIndArray(xDim,yDim,object2pixels,indValues,ind)
             # save it as GDAL file
-            pathName = os.path.join(output_path, indicators[ind] + '.tiff')
+            pathName = os.path.join(output_path, indicators[ind] + '.tif')
             array2raster(indArray,pathName,geoClasses,projection)
+        ciop.log('INFO', 'GDAL files saved in the temporary folder!')
         
         # save as csv
-        print("saving values as csv...")
+        ciop.log('INFO', 'Saving indicator values as csv...')
         headings = ['Object ID'] + indicators + ['Class ID']
         with open(os.path.join(output_path,"indValues.csv"),"w") as f:
             csvWriter = csv.writer(f)
@@ -635,9 +628,12 @@ def main():
                 # append the object class
                 tempList.extend([object2class[key]])
                 csvWriter.writerow(tempList)
-
+        ciop.log('INFO', 'Indicator values saved as indValues.csv!')
+                
         # compress the results
-        os.chdir(os.path.join(ciop.tmp_dir, 'outputs/'))
+        ciop.log('INFO', 'Compressing the results...')
+        outputFolder = os.path.join(ciop.tmp_dir, 'outputs/')
+        os.chdir(outputFolder)
         filename = folderName + '_landmeasures'
         shutil.make_archive(filename,'zip',folderName)
         zippedResults = filename + '.zip'
@@ -646,8 +642,8 @@ def main():
         # publish the compressed results
         os.chdir(ciop.tmp_dir)
         ciop.log('INFO', 'Publishing ' + zippedResults) 
-        ciop.publish(os.path.join(output_path, zippedResults))        
-
+        ciop.publish(os.path.join(outputFolder, zippedResults))        
+        ciop.log('INFO', 'Results published in HDFS!')
 
 try:
     main()
