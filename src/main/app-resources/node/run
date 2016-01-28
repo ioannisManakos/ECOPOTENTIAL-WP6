@@ -601,7 +601,7 @@ def main():
         indValues = calcIndicatorValues(classes,class2objects,xDim,yDim,object2pixels,pixelSize,cellSize,step,indicators)
         ciop.log('INFO', 'Indicators calculated!')
 
-        ciop.log('INFO', 'Saving the results in GDAL files...')
+        ciop.log('INFO', 'Saving the indicators in GDAL files...')
         # for each indicator, create an array of its values and save it as GDAL file
         for ind in range(numIndicators):
             # create the array
@@ -609,10 +609,10 @@ def main():
             # save it as GDAL file
             pathName = os.path.join(output_path, indicators[ind] + '.tif')
             array2raster(indArray,pathName,geoClasses,projection)
-        ciop.log('INFO', 'GDAL files saved under /tmp/outputs/' + folderName '/ directory!')
+        ciop.log('INFO', 'GDAL files saved under /tmp/outputs/' + folderName + '/ directory!')
         
         # save as csv
-        ciop.log('INFO', 'Saving indicator values as csv...')
+        ciop.log('INFO', 'Saving per object indicator values as csv...')
         headings = ['Object ID'] + indicators + ['Class ID']
         with open(os.path.join(output_path,"indValues.csv"),"w") as f:
             csvWriter = csv.writer(f)
@@ -625,7 +625,7 @@ def main():
                 # append the object class
                 tempList.extend([object2class[key]])
                 csvWriter.writerow(tempList)
-        ciop.log('INFO', 'Indicator values saved as indValues.csv under /tmp/outputs/' + folderName '/ directory!'!')
+        ciop.log('INFO', 'Indicator values saved as indValues.csv under /tmp/outputs/' + folderName + '/ directory!'!')
                 
         # compress the results
         ciop.log('INFO', 'Compressing the results...')
@@ -634,7 +634,7 @@ def main():
         filename = folderName + '_landmeasures'
         shutil.make_archive(filename,'zip',folderName)
         zippedResults = filename + '.zip'
-        ciop.log('INFO', 'Results compressed as ' + zippedResults ' under the /tmp/outputs/ directory')
+        ciop.log('INFO', 'Results compressed as ' + zippedResults + ' under the /tmp/outputs/ directory')
 
         # publish the compressed results
         os.chdir(ciop.tmp_dir)
