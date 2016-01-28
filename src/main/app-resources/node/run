@@ -387,7 +387,7 @@ def calcIndicatorValues(classes,class2objects,xDim,yDim,object2pixels,pixelSize,
                 # calculate all indicators
                 numIndicators = len(indicators)
                 for ind in range(numIndicators):
-                    ciop.log('INFO','Still calculating...')
+                    ciop.log('INFO','')
                     # calculate the indicators in a per pixel basis
                     I = gridCalculations(B,pixelSize,cellSize,step,indicators[ind]);
 
