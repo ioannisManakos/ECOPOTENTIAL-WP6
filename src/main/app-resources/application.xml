@@ -9,7 +9,7 @@
       </defaultParameters>
     </jobTemplate>
   </jobTemplates>
-    <workflow id="workflow" title="Landscape Measures" abstract="Calculation of landscape measures quantifying fragmentation and connectivity">
+    <workflow id="landscape_measures" title="Landscape Measures" abstract="Calculation of landscape measures quantifying fragmentation and connectivity">
     <workflowVersion>1.0</workflowVersion>
     <node id="node">
       <job id="template"/>
