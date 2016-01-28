@@ -457,22 +457,22 @@ def main():
         retrievedClasses = ciop.copy(inputfile[0],ciop.tmp_dir,False)
         ciop.log('INFO', 'retrievedClasses: ' + retrievedClasses)
         assert(retrievedClasses)
-        outputnameClasses = os.path.basename(retrievedClasses)
-        ciop.log('INFO', 'Retrieved ' + outputnameClasses)
+        zippedNameClasses = os.path.basename(retrievedClasses)
+        ciop.log('INFO', 'Retrieved ' + zippedNameClasses)
         retrievedObjects = ciop.copy(inputfile[1],ciop.tmp_dir,False)
         ciop.log('INFO', 'retrievedObjects: ' + retrievedObjects)
         assert(retrievedObjects)
-        outputnameObjects = os.path.basename(retrievedObjects)
-        ciop.log('INFO', 'Retrieved ' + outputnameObjects)
+        zippedNameObjects = os.path.basename(retrievedObjects)
+        ciop.log('INFO', 'Retrieved ' + zippedNameObjects)
         # unzip the files in the /tmp directory
         os.chdir(ciop.tmp_dir)
-        fh = open(outputnameClasses,'rb')
+        fh = open(zippedNameClasses,'rb')
         z = zipfile.ZipFile(fh)
         classesName = z.namelist()[0]
         z.extract(classesName)
         ciop.log('INFO', classesName + ' extracted in ' + ciop.tmp_dir)
 
-        fh = open(outputnameObjects,'rb')
+        fh = open(zippedNameObjects,'rb')
         z = zipfile.ZipFile(fh)
         objectsName = z.namelist()[0]
         z.extract(objectsName,ciop.tmp_dir)
@@ -483,11 +483,11 @@ def main():
         # convention [Area]_Classes.tif, extract the name of the area and use it as 
         # the output folder name. If no '_Classes' in the name, use as output folder name
         # the entire name of the classes file
-        match = re.search('([\w.-]+)([_Class]+)',classesName)
+        match = re.search('([\w.-]+)(_Class\w+)',classesName)
         if match:
             folderName = match.group(1)
         else:
-           match = re.search('([\w.-]+)([_class]+)',classesName)
+           match = re.search('([\w.-]+)(_class\w+)',classesName)
            if match:
                folderName = match.group(1)
            else:
@@ -634,19 +634,27 @@ def main():
                 tempList.extend([object2class[key]])
                 csvWriter.writerow(tempList)
 
-
         # compress the results
-        os.chdir(output_path)
-        with tarfile.open(os.path.join(output_path, folderName + '_landmeasures.tar.gz'), "w:gz") as tar:
-            tar.add(outputname + '.dim')
-            tar.add(outputname + '.data')
-            tar.close()
+        os.chdir(os.path.join(ciop.tmp_dir, 'outputs/'))
+        filename = folderName + '_landmeasures'
+        fh = open(filename,'w')
+        z = zipfile.ZipFile(fh)
+        z.write(folderName,filename)
+        ciop.log('INFO', 'Results compressed as ' + filename)
+
+        
+        # # compress the results
+        # os.chdir(output_path)
+        # with tarfile.open(os.path.join(output_path, folderName + '_landmeasures.tar.gz'), "w:gz") as tar:
+            # tar.add(outputname + '.dim')
+            # tar.add(outputname + '.data')
+            # tar.close()
 
         os.chdir(ciop.tmp_dir)
    
         # publish the compressed results
-        ciop.log('INFO', 'Publishing ' + folderName + '_landmeasures.tar.gz') 
-        ciop.publish(os.path.join(output_path, folderName + '_landmeasures.tar.gz'))        
+        ciop.log('INFO', 'Publishing ' + filename') 
+        ciop.publish(os.path.join(output_path, filename))        
 
 
 try:
