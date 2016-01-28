@@ -39,7 +39,7 @@ ciop.log('INFO', 'Python DCS')
 
 # define the exit codes
 SUCCESS = 0
-ERR_BEAM = 2
+ERR_NOOPEN = 1
 ERR_NOEXPR = 3
 ERR_NOINPUT=4
 
@@ -50,7 +50,7 @@ def clean_exit(exit_code):
         log_level = 'ERROR'  
    
     msg = {SUCCESS: 'Processing successfully concluded',
-           ERR_BEAM: 'Beam_expr failed to process product',
+           ERR_NOOPEN: 'Cannot open a GDAL file',
            ERR_NOEXPR: 'No expression provided',
            ERR_NOINPUT: 'No input provided'}
  
@@ -498,19 +498,19 @@ def main():
     	
         # open the classes raster file
         try:
-            classesDataset = gdal.Open(outputnameClasses)
+            classesDataset = gdal.Open(os.path.join(ciop.tmp_dir,classesName))
         except RuntimeError, e:    #python 2.x syntax
         #except RuntimeError as e:   #python 3 syntax
-            print('Classes file cannot be opened')
-            print(e)
+            ciop.log('INFO', 'Classes file cannot be opened')
+            ciop.log('INFO',e)
             sys.exit(1)
         # open the object raster file
         try:
-            objectsDataset = gdal.Open(outputnameObjects)
+            objectsDataset = gdal.Open(os.path.join(ciop.tmp_dir,objectsName)
         except RuntimeError, e:    #python 2.x syntax
         #except RuntimeError as e:   #python 3 syntax
-            print('Objects file cannot be opened')
-            print(e)
+            ciop.log('INFO','Objects file cannot be opened')
+            ciop.log('INFO',e)
             sys.exit(1)
     
         # find the pixel resolution
