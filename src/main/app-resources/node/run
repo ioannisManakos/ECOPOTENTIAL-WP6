@@ -653,7 +653,7 @@ def main():
         os.chdir(ciop.tmp_dir)
    
         # publish the compressed results
-        ciop.log('INFO', 'Publishing ' + filename') 
+        ciop.log('INFO', 'Publishing ' + filename) 
         ciop.publish(os.path.join(output_path, filename))        
 
 
