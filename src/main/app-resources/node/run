@@ -495,7 +495,6 @@ def main():
         output_path = os.path.join(ciop.tmp_dir, 'outputs/' + folderName)
         os.makedirs(output_path)
         ciop.log('INFO', 'output_path: ' + output_path)
-
     	
         # open the classes raster file
         try:
@@ -654,18 +653,11 @@ def main():
         ciop.publish(os.path.join(output_path, folderName + '_landmeasures.tar.gz'))        
 
 
-
-
-
 try:
     main()
 except SystemExit, e:
     if e.args[0]:
-<<<<<<< HEAD
         ciop.log('INFO','e.args[0] is: ' + e.args[0])
-=======
-        ciop.log('INFO', 'e.args[0]: ' + e.args[0])
->>>>>>> 3312484855444b964fd27c722f7204732bbaf520
         clean_exit(e.args[0])
     raise
 else:
