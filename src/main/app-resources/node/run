@@ -447,12 +447,10 @@ def main():
         inputfile = inputfile.split('*****')
         # retrieve the files with the classes and the object ids
         retrievedClasses = ciop.copy(inputfile[0],ciop.tmp_dir,False)
-        ciop.log('INFO', 'retrievedClasses: ' + retrievedClasses)
         assert(retrievedClasses)
         zippedNameClasses = os.path.basename(retrievedClasses)
         ciop.log('INFO', 'Retrieved ' + zippedNameClasses)
         retrievedObjects = ciop.copy(inputfile[1],ciop.tmp_dir,False)
-        ciop.log('INFO', 'retrievedObjects: ' + retrievedObjects)
         assert(retrievedObjects)
         zippedNameObjects = os.path.basename(retrievedObjects)
         ciop.log('INFO', 'Retrieved ' + zippedNameObjects)
@@ -463,14 +461,14 @@ def main():
         classesName = z.namelist()[0]
         z.extract(classesName)
         z.close()
-        ciop.log('INFO', classesName + ' extracted in ' + ciop.tmp_dir)
+        ciop.log('INFO', classesName + ' extracted in /tmp directory')
 
         fh = open(zippedNameObjects,'rb')
         z = zipfile.ZipFile(fh)
         objectsName = z.namelist()[0]
         z.extract(objectsName,ciop.tmp_dir)
         z.close()
-        ciop.log('INFO', objectsName + ' extracted in ' + ciop.tmp_dir)
+        ciop.log('INFO', objectsName + ' extracted in /tmp directory')
 
         # create the output folder to store the output products and export it
         # Supposing the classes (and similarly the objects)  file is named following the 
@@ -488,8 +486,7 @@ def main():
                folderName = classesName
         output_path = os.path.join(ciop.tmp_dir, 'outputs/' + folderName)
         os.makedirs(output_path)
-        ciop.log('INFO', 'output_path: ' + output_path)
-    	
+        
         # open the classes raster file
         try:
             classesDataset = gdal.Open(os.path.join(ciop.tmp_dir,classesName))
@@ -612,7 +609,7 @@ def main():
             # save it as GDAL file
             pathName = os.path.join(output_path, indicators[ind] + '.tif')
             array2raster(indArray,pathName,geoClasses,projection)
-        ciop.log('INFO', 'GDAL files saved in the temporary folder!')
+        ciop.log('INFO', 'GDAL files saved under /tmp/outputs/' + folderName '/ directory!')
         
         # save as csv
         ciop.log('INFO', 'Saving indicator values as csv...')
@@ -628,7 +625,7 @@ def main():
                 # append the object class
                 tempList.extend([object2class[key]])
                 csvWriter.writerow(tempList)
-        ciop.log('INFO', 'Indicator values saved as indValues.csv!')
+        ciop.log('INFO', 'Indicator values saved as indValues.csv under /tmp/outputs/' + folderName '/ directory!'!')
                 
         # compress the results
         ciop.log('INFO', 'Compressing the results...')
@@ -637,7 +634,7 @@ def main():
         filename = folderName + '_landmeasures'
         shutil.make_archive(filename,'zip',folderName)
         zippedResults = filename + '.zip'
-        ciop.log('INFO', 'Results compressed as ' + zippedResults)
+        ciop.log('INFO', 'Results compressed as ' + zippedResults ' under the /tmp/outputs/ directory')
 
         # publish the compressed results
         os.chdir(ciop.tmp_dir)
