@@ -483,17 +483,19 @@ def main():
         # convention [Area]_Classes.tif, extract the name of the area and use it as 
         # the output folder name. If no '_Classes' in the name, use as output folder name
         # the entire name of the classes file
-        match = re.search('([\w.-]+[_Class]+',classesName)
+        match = re.search('([\w.-]+)([_Class]+)',classesName)
         if match:
             folderName = match.group(1)
         else:
-           match = re.search('([\w.-]+[_class]+',classesName)
+           match = re.search('([\w.-]+)([_class]+)',classesName)
            if match:
                folderName = match.group(1)
            else:
                folderName = classesName
         output_path = os.path.join(ciop.tmp_dir, 'outputs/' + folderName)
         os.makedirs(output_path)
+        ciop.log('INFO', 'output_path: ' + output_path)
+
     	
         # open the classes raster file
         try:
