@@ -40,7 +40,7 @@ ciop.log('INFO', 'Python DCS')
 # define the exit codes
 SUCCESS = 0
 ERR_NOOPEN = 1
-ERR_NOEXPR = 3
+ERR_NOBAND = 2
 ERR_NOINPUT=4
 
 # add a trap to exit gracefully
@@ -62,7 +62,7 @@ def opengdaldataset(filePath):
         dtset = gdal.Open(filePath)
     #except RuntimeError, e:    #python 2.x syntax
     except RuntimeError as e:   #python 3 syntax
-        print('Classes file cannot be opened')
+        print('GDAL file cannot be opened')
         print(e)
         sys.exit(1)
     return dtset
@@ -76,7 +76,7 @@ def raster2array(gdalDataset):
     except RuntimeError as e:   #python 3 syntax
         print('No band data in the classes file')
         print(e)
-        sys.exit(1)
+        sys.exit(2)
     
     # convert raster to numpy arrays
     arrayData = np.array(rasterData.ReadAsArray())
@@ -499,16 +499,14 @@ def main():
         # open the classes raster file
         try:
             classesDataset = gdal.Open(os.path.join(ciop.tmp_dir,classesName))
-        except RuntimeError, e:    #python 2.x syntax
-        #except RuntimeError as e:   #python 3 syntax
+        except RuntimeError as e:    
             ciop.log('INFO', 'Classes file cannot be opened')
             ciop.log('INFO',e)
             sys.exit(1)
         # open the object raster file
         try:
             objectsDataset = gdal.Open(os.path.join(ciop.tmp_dir,objectsName))
-        except RuntimeError, e:    #python 2.x syntax
-        #except RuntimeError as e:   #python 3 syntax
+        except RuntimeError as e:
             ciop.log('INFO','Objects file cannot be opened')
             ciop.log('INFO',e)
             sys.exit(1)
@@ -536,25 +534,23 @@ def main():
 
         # log the value, it helps debugging. 
         # the log entry is available in the process stderr 
-        ciop.log('INFO', 'The pixel size is: ' + pixelSize + ' m')
-        ciop.log('INFO', 'The cell size used is: ' + cellSize + ' m')
-        ciop.log('INFO', 'The step used is: ' + step + ' m')
+        ciop.log('INFO', 'The pixel size is: ' + str(pixelSize) + ' m')
+        ciop.log('INFO', 'The cell size used is: ' + str(cellSize) + ' m')
+        ciop.log('INFO', 'The step used is: ' + str(step) + ' m')
     
         # read the raster data
         try:
             classesBand = classesDataset.GetRasterBand(1)
-        except RuntimeError, e:    #python 2.x syntax
-        #except RuntimeError as e:   #python 3 syntax
+        except RuntimeError as e:
             print('No band data in the classes file')
             print(e)
-            sys.exit(1)
+            sys.exit(2)
         try:
             objectsBand = objectsDataset.GetRasterBand(1)
-        except RuntimeError, e:    #python 2.x syntax
-        #except RuntimeError as e:   #python 3 syntax
+        except RuntimeError, e:
             print('No band data in the objects file')
             print(e)
-            sys.exit(1)
+            sys.exit(2)
 
 
         # read the raster datasets as numpy arrays
