@@ -90,29 +90,34 @@ The geospatial files used as input are currently downloaded from a dropbox repos
 ```
   The first line indicates the urls where the classification and object files can be retrieved from. The files are separated by five asterisk symbols '*****', as convention for the algorithm to understand the existence of two input files at the same node (they both are at the same line). The second line includes the urls of the respective files for the second study area. Note: No empty line should exist in the 'list' file.
 3. After editing the input parameters and files, re-install the scripts
-```bash
-cd
-cd ECOPOTENTIAL-WP6
-mvn clean install
-```
+  ```bash
+  cd
+  cd ECOPOTENTIAL-WP6
+  mvn clean install
+  ```
 4. Run the scripts to calculate the landscape measures
-```bash
-ciop-simjob my_node
-```
+  ```bash
+  ciop-simjob my_node
+  ```
 5. To inspect the output messages and debug the workflow if needed, copy the "Tracking URL" found in the output of the `ciop-simjob` command, open a browser and paste the Tracking URL just copied. You may follow an approach similar to the one described [here](http://docs.terradue.com/developer-sandbox/developer/debug.html).
 6. To inspect and download the produced (and published) outputs locally, follow a process similar to the one described [here](http://docs.terradue.com/developer-sandbox/developer/browseresults.html). In particular, for the particular scripts, the process should be:
   * Retrieve the $HOSTNAME value
-  ```bash
-  echo $HOSTNAME
-  ```
+    ```bash
+    echo $HOSTNAME
+    ```
   * Open a browser and type:
-  ```bash
-  http://$HOSTNAME:50070
-  ```
-  * Click on the link Browse the filesystem,
-  * Click on the link ciop,
-  * Click on the link run,
-  * Click on the link hands-on-8,
-  * Click on the link representing the workflow id (e.g., 0000269-150209145053100-oozie-oozi-W),
-  * Click on the link _result,
-  * To see intermediate results, click on node_expression and then click on data.
+    ```bash
+    http://$HOSTNAME:50070
+    ```
+  * Click on the link *Browse the filesystem*,
+  * Click on the link *tmp*,
+  * Click on the link *sandbox*,
+  * Click on the link *landscape_measures*,
+  * Click on the link *node*,
+  * Click on the link *data*,
+  * Download the following (compressed) results:
+    * *LagoSalso_landmeasures.zip*
+    * *LeCesine_landmeasures.zip*
+    The two zip files contain the outputs for each of the two study areas, namely Le Cesine and Lago Salso sites in Italy. The .zip files include:
+      * An image file for each calculated indicator, with the pixels of each object containing the values of the indicator calculated based on the class they belong.
+      * A file 'indValues.csv' containing the values of the indicators for each object. The file contains also the object ID of the respective object and the class ID where this object belongs in.
