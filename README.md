@@ -76,20 +76,21 @@ The values are expressed in meters and the default ones are '1000' for the cell 
 
 2. Set the sources of the input files.
 Two geospatial raster files of a selected study area are used as input to the algorithm, in particular:
-* A land cover or habitat classification file, where each pixel contains a numerical id value indicating the class it belongs;
-* A segmentation file, where each pixel contains the numerical id of the object/segment/patch of the area it belongs in.
+> * A land cover or habitat classification file, where each pixel contains a numerical id value indicating the class it belongs;
+> * A segmentation file, where each pixel contains the numerical id of the object/segment/patch of the area it belongs in.
 The geospatial files used as input are currently downloaded from a dropbox repository, as compressed .zip file. The urls which the data are downlowaded from are stored in a 'list' file under ECOPOTENTIAL-WP6/src/main/app-resources/inputs/. Alternatively, the input files can be read from an online catalogue repository or retrieved from the VM local temporary /tmp folder (assuming they have been previously stored there). Further details on the different options to define input files can be found [here](http://docs.terradue.com/developer-sandbox/reference/application/index.html#application-descriptor-values-and-properties).
 
-To change the source of the input files, the following line within the "workflow" section in the application.xml file needs to be updated:
+  To change the source of the input files, the following line within the "workflow" section in the application.xml file needs to be updated:
       ```bash
       <source refid="file:urls">/application/inputs/list</source>
       ```
-Currently, a habitat classification and a segmentation file are provided for each of two selected study areas, in order to demonstrate the Sandbox VM capability for parallel processing (one node processing the data for each study area). The 'list' file would look like:
+
+  Currently, a habitat classification and a segmentation file are provided for each of two selected study areas, in order to demonstrate the Sandbox VM capability for parallel processing (one node processing the data for each study area). The 'list' file would look like:
 ```bash
 https://dl.dropboxusercontent.com/u/6489496/LeCesine_Classes.zip*****https://dl.dropboxusercontent.com/u/6489496/LeCesine_Objects.zip
 https://dl.dropboxusercontent.com/u/6489496/LagoSalso_Classes.zip*****https://dl.dropboxusercontent.com/u/6489496/LagoSalso_Objects.zip
 ```
-The first line indicates the urls where the classification and object files can be retrieved from. The files are separated by five asterisk symbols '*****', as convention for the algorithm to understand the existence of two input files at the same node (they both are at the same line). The second line includes the urls of the respective files for the second study area. Note: No empty line should exist in the 'list' file.
+  The first line indicates the urls where the classification and object files can be retrieved from. The files are separated by five asterisk symbols '*****', as convention for the algorithm to understand the existence of two input files at the same node (they both are at the same line). The second line includes the urls of the respective files for the second study area. Note: No empty line should exist in the 'list' file.
 
 3. After editing the input parameters and files, re-install the scripts
 ```bash
@@ -103,21 +104,21 @@ mvn clean install
 ciop-simjob my_node
 ```
 
-5. To inspect the output messages and debug the workflow if needed, copy the "Tracking URL" found in the output of the ciop-simjob command, open a browser and paste the Tracking URL just copied. You may follow an approach similar to the one described [here](http://docs.terradue.com/developer-sandbox/developer/debug.html).
+5. To inspect the output messages and debug the workflow if needed, copy the "Tracking URL" found in the output of the `ciop-simjob` command, open a browser and paste the Tracking URL just copied. You may follow an approach similar to the one described [here](http://docs.terradue.com/developer-sandbox/developer/debug.html).
 
 6. To inspect and download the produced (and published) outputs locally, follow a process similar to the one described [here](http://docs.terradue.com/developer-sandbox/developer/browseresults.html). In particular, for the particular scripts, the process should be:
-* Retrieve the $HOSTNAME value
-```bash
-echo $HOSTNAME
-```
-* Open a browser and type:
-```bash
-http://$HOSTNAME:50070
-```
-* Click on the link Browse the filesystem,
-* Click on the link ciop,
-* Click on the link run,
-* Click on the link hands-on-8,
-* Click on the link representing the workflow id (e.g., 0000269-150209145053100-oozie-oozi-W),
-* Click on the link _result,
-* To see intermediate results, click on node_expression and then click on data.
+  * Retrieve the $HOSTNAME value
+  ```bash
+  echo $HOSTNAME
+  ```
+  * Open a browser and type:
+  ```bash
+  http://$HOSTNAME:50070
+  ```
+  * Click on the link Browse the filesystem,
+  * Click on the link ciop,
+  * Click on the link run,
+  * Click on the link hands-on-8,
+  * Click on the link representing the workflow id (e.g., 0000269-150209145053100-oozie-oozi-W),
+  * Click on the link _result,
+  * To see intermediate results, click on node_expression and then click on data.
