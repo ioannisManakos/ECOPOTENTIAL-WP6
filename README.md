@@ -15,40 +15,30 @@ The algorithm is implemented in a way to be executed in a Sandbox Virtual Machin
 =================================
 
 ## Installation
-The following steps need to be followed to install the software in 
-###dfsdfsa
-####dfads
-fads
-
-
-=================================
-
-Developer Cloud Sandbox Hands-On Exercises
-==========================================
-
-Installation
--------------
+The following steps need to be followed to install the software in a Sandbox VM.
 
 * Log on your Developer Cloud Sandbox host
-
-* Install the needed package:
-
+* Install python in the VM, typing the following commands in the VM terminal:
 ```bash
-sudo yum install -y beam-5.0
+sudo yum install -y miniconda-3.8.3
+export PATH=/opt/anaconda/bin:$PATH
+sudo conda update python
+sudo conda install cioppy
 ```
-
-* Run these commands in a shell:
-
+* Install the required python modules, such as
+```bash
+sudo conda install numpy
+sudo conda install scikit-image
+sudo conda install gdal
+```
+* Copy the GitHub repository in your local VM
 ```bash
 cd
-git clone https://github.com/Terradue/dcs-hands-on.git
-cd dcs-hands-on
-mvn clean install -D hands.on=-id- -P bash
+git clone https://github.com/ioannisManakos/ECOPOTENTIAL-WP6.git
+cd ECOPOTENTIAL-WP6
+mvn clean install
 ```
 
-where *-id-* is the identifier of the Hands On you want to install. For example:
+===============================
 
-```
-mvn clean install -D hands.on=1 -P bash
-```
-
+## Run the scripts
