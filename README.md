@@ -118,6 +118,6 @@ The geospatial files used as input are currently downloaded from a dropbox repos
   * Download the following (compressed) results:
     * *LagoSalso_landmeasures.zip*
     * *LeCesine_landmeasures.zip*
-    The two zip files contain the outputs for each of the two study areas, namely Le Cesine and Lago Salso sites in Italy. The .zip files include:
+   The two zip files contain the outputs for each of the two study areas, namely Le Cesine and Lago Salso sites in Italy. The .zip files include:
       * An image file for each calculated indicator, with the pixels of each object containing the values of the indicator calculated based on the class they belong.
       * A file 'indValues.csv' containing the values of the indicators for each object. The file contains also the object ID of the respective object and the class ID where this object belongs in.
