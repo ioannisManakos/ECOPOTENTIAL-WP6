@@ -438,9 +438,10 @@ def main():
     indicators = ['PLAND','CA','MESH','PD','SHAPE','MPS','AWMPFD']     
     # the number of indicators
     numIndicators = len(indicators)
-    
+    ciop.log('INFO','After_indications_definition') 
     # allow GDAL to throw Python Exceptions
     gdal.UseExceptions()
+    ciop.log('INFO','After_gdal_use_exceptions') 
 
     # Loops over all the inputs
     for inputfile in sys.stdin:
