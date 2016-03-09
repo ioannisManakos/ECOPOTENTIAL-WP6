@@ -40,17 +40,19 @@ sudo conda install cioppy
 sudo conda install numpy
 sudo conda install scikit-image
 sudo conda install gdal
+sudo conda install libgdal
+sudo conda install lxml
 ```
 * Copy the GitHub repository in your local VM
-   ```bash
-   cd
-   git clone https://github.com/ioannisManakos/ECOPOTENTIAL-WP6.git
-   ```
+```bash
+cd
+git clone https://github.com/ioannisManakos/ECOPOTENTIAL-WP6.git
+```
 * Install the scripts
-   ```bash
-   cd ECOPOTENTIAL-WP6
-   mvn clean install
-   ```
+```bash
+cd ECOPOTENTIAL-WP6
+mvn clean install
+```
 
 
 ===============================
@@ -65,13 +67,11 @@ ciop-simjob my_node
 
 To set different parameters and/or input files, the following need to be performed.
 
-1. Set the size of the moving cell and the step distance between consecutive
-cells
-  Open the application.xml file under ECOPOTENTIAL-WP6/scr/main/app-resources/ and update the values of "cellSize" and "step" in lines within the "jobTemplates" section:
-      ```bash
-      <parameter id="cellSize">1000</parameter>
-      <parameter id="step">500</parameter>
-      ```
+1. Set the size of the moving cell and the step distance between consecutive cells. Open the application.xml file under ECOPOTENTIAL-WP6/scr/main/app-resources/ and update the values of "cellSize" and "step" in lines within the "jobTemplates" section:
+  ```bash
+  <parameter id="cellSize">1000</parameter>
+  <parameter id="step">500</parameter>
+  ```
   The values are expressed in meters and the default ones are '1000' for the cell size and '500' for the step. 
 
 2. Set the sources of the input files.
@@ -80,14 +80,14 @@ cells
   * A segmentation file, where each pixel contains the numerical id of the object/segment/patch of the area it belongs in.
 The geospatial files used as input are currently downloaded from a dropbox repository, as compressed .zip file. The urls which the data are downlowaded from are stored in a 'list' file under ECOPOTENTIAL-WP6/src/main/app-resources/inputs/. Alternatively, the input files can be read from an online catalogue repository or retrieved from the VM local temporary /tmp folder (assuming they have been previously stored there). Further details on the different options to define input files can be found [here](http://docs.terradue.com/developer-sandbox/reference/application/index.html#application-descriptor-values-and-properties).
   To change the source of the input files, the following line within the "workflow" section in the application.xml file needs to be updated:
-      ```bash
-      <source refid="file:urls">/application/inputs/list</source>
-      ```
+  ```bash
+  <source refid="file:urls">/application/inputs/list</source>
+  ```
   Currently, a habitat classification and a segmentation file are provided for each of two selected study areas, in order to demonstrate the Sandbox VM capability for parallel processing (one node processing the data for each study area). The 'list' file would look like:
   ```bash
   https://dl.dropboxusercontent.com/u/6489496/LeCesine_Classes.zip*****https://dl.dropboxusercontent.com/u/6489496/LeCesine_Objects.zip
   https://dl.dropboxusercontent.com/u/6489496/LagoSalso_Classes.zip*****https://dl.dropboxusercontent.com/u/6489496/LagoSalso_Objects.zip
-```
+  ```
   The first line indicates the urls where the classification and object files can be retrieved from. The files are separated by five asterisk symbols '*****', as convention for the algorithm to understand the existence of two input files at the same node (they both are at the same line). The second line includes the urls of the respective files for the second study area. Note: No empty line should exist in the 'list' file.
 3. After editing the input parameters and files, re-install the scripts
   ```bash
@@ -102,13 +102,13 @@ The geospatial files used as input are currently downloaded from a dropbox repos
 5. To inspect the output messages and debug the workflow if needed, copy the "Tracking URL" found in the output of the `ciop-simjob` command, open a browser and paste the Tracking URL just copied. You may follow an approach similar to the one described [here](http://docs.terradue.com/developer-sandbox/developer/debug.html).
 6. To inspect and download the produced (and published) outputs locally, follow a process similar to the one described [here](http://docs.terradue.com/developer-sandbox/developer/browseresults.html). In particular, for the particular scripts, the process should be:
   * Retrieve the $HOSTNAME value
-    ```bash
-    echo $HOSTNAME
-    ```
+  ```bash
+  echo $HOSTNAME
+  ```
   * Open a browser and type:
-    ```bash
-    http://$HOSTNAME:50070
-    ```
+  ```bash
+  http://$HOSTNAME:50070
+  ```
   * Click on the link *Browse the filesystem*,
   * Click on the link *tmp*,
   * Click on the link *sandbox*,
