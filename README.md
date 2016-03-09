@@ -40,6 +40,8 @@ sudo conda install cioppy
 sudo conda install numpy
 sudo conda install scikit-image
 sudo conda install gdal
+sudo conda install libgdal
+sudo conda install lxml
 ```
 * Copy the GitHub repository in your local VM
    ```bash
